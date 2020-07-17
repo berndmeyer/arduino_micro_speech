@@ -98,11 +98,57 @@ Example output acquired from the SB-CNN (49x40) model, using the micro_speech_on
 
 It contains txt files which were captured using a python script.  Each 'txt' file contains a single result when the button was clicked, and includes the inference result output tensor, raw 16000 audio samples of sined int16 precision and the input feature as created by the micro_frontend as a 49x40 array (1960 samples of signed int8 precision).
 
+For example `results_0001_no_no.txt` 
+- was the first (0001) record
+- the target word was `no` (first `no` in filename) 
+- it was inferred as `no` (second `no` in filename)
+  - Output is a 2 x 1 tensor with a softmax int8 value  
+  - `AvgScore 0` = `no` with a score of 26 (int8) 
+  - `AvgScore 1` = `yes` with as score of -26 (int8) 
+- some debugging preample is at the top of each file
+- As the score exceeds 20, the recognizer reports `Heard no (26) @ &lt;time&gt; ms
+- feature data set follows 'x y value'
+- raw audio follows, as 'Audio &lt;pos&gt; @ &lt;PCM value&gt; (int16_t = -32768 to 32767)'
+
+```
+Pressed
+Feature requested..
+Feature not recording
+Recording initialized
+Recording started
+Feature recording
+Feature Check
+Feature Retrieved
+Retrieved feature
+Score 0 0 26
+Score 0 1 -26
+AvgScore 0 26
+AvgScore 1 -26
+Heard no (26) @11968ms
+0 0 117
+0 1 86
+0 2 90
+0 3 79
+0 4 99
+...
+48 37 0
+48 38 0
+48 39 0
+Audio 0 @ 248
+Audio 1 @ 157
+Audio 2 @ 172
+Audio 3 @ 114
+...
+Audio 16381 @ -126
+Audio 16382 @ -145
+Audio 16383 @ -125
+Complete
+```
+
 **LICENCE**
 
-All audio samples and output reesult data provided here may be used for research purposes only.  Commercial use is strictly forbidden.
+All audio samples and output result data provided here may be used for research purposes only.  Commercial use is strictly forbidden.
 
 https://creativecommons.org/licenses/by-nc/3.0/au/
 
-
-All source code is provided without warranty, and attribution must be provided if used to the original authors.  For specific licence conditions, see the soure file headers.
+All source code is provided without warranty, and attribution must be provided if used to the original authors.  For specific licence conditions, see the source file headers.
