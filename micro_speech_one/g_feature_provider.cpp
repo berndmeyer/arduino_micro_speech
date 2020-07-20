@@ -110,8 +110,7 @@ TfLiteStatus FeatureProvider::RetrieveFeature() {
 
 bool FeatureProvider::IsFeatureReady() {
   bool is_ready = IsRecordingReady();
-);
-  return IsRecordingReady();
+  return is_ready;
 }
 
 bool FeatureProvider::IsFeatureRequested() {
