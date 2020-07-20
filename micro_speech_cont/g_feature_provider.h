@@ -1,3 +1,6 @@
+#ifndef _G_FEATURE_PROVIDER_H
+#define _G_FEATURE_PROVIDER_H
+
 /* Copyright 2018 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,11 +16,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_LITE_MICRO_EXAMPLES_MICRO_SPEECH_FEATURE_PROVIDER_H_
-#define TENSORFLOW_LITE_MICRO_EXAMPLES_MICRO_SPEECH_FEATURE_PROVIDER_H_
-
+#include <TensorFlowLite.h>
 #include "tensorflow/lite/c/common.h"
 #include "tensorflow/lite/micro/micro_error_reporter.h"
+
+// kTfLiteError
+// kTfLiteOk
 
 // Binds itself to an area of memory intended to hold the input features for an
 // audio-recognition neural network model, and fills that data area with the
@@ -32,21 +36,31 @@ class FeatureProvider {
   // remain accessible for the lifetime of the provider object, since subsequent
   // calls will fill it with feature data. The provider does no memory
   // management of this data.
-  FeatureProvider(int feature_size, int8_t* feature_data);
+  FeatureProvider(tflite::ErrorReporter* error_reporter,
+      int feature_size, int8_t* feature_data);
   ~FeatureProvider();
 
   // Fills the feature data with information from audio inputs, and returns how
   // many feature slices were updated.
-  TfLiteStatus PopulateFeatureData(tflite::ErrorReporter* error_reporter,
-                                   int32_t last_time_in_ms, int32_t time_in_ms,
-                                   int* how_many_new_slices, bool* audio_threshold);
+  TfLiteStatus RequestFeature();
 
+  // Acquires a Feature, once the feature is available.
+  TfLiteStatus RetrieveFeature();
+
+  // Checks whether the feature is ready to collect
+  bool IsFeatureReady();
+
+  bool IsFeatureRequested();
+
+  void DisplayFeature();
  private:
+  tflite::ErrorReporter* error_reporter_;
   int feature_size_;
   int8_t* feature_data_;
+  bool feature_requested_;
   // Make sure we don't try to use cached information if this is the first call
   // into the provider.
   bool is_first_run_;
 };
 
-#endif  // TENSORFLOW_LITE_MICRO_EXAMPLES_MICRO_SPEECH_FEATURE_PROVIDER_H_
+#endif  // _G_FEATURE_PROVIDER_H

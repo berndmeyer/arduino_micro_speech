@@ -80,13 +80,6 @@ TfLiteStatus RecognizeCommands::ProcessLatestResults(
   const int64_t how_many_results = previous_results_.size();
   const int64_t earliest_time = previous_results_.front().time_;
   const int64_t samples_duration = current_time_ms - earliest_time;
-//  if ((how_many_results < minimum_count_) ||
-//      (samples_duration < (average_window_duration_ms_ / 4))) {
-//    *found_command = previous_top_label_;
-//    *score = 0;
-//    *is_new_command = false;
-//    return kTfLiteOk;
-//  }
 
   // Calculate the average score across all the results in the window.
   int32_t average_scores[kCategoryCount];
@@ -96,14 +89,14 @@ TfLiteStatus RecognizeCommands::ProcessLatestResults(
     const int8_t* scores = previous_result.scores;
     for (int i = 0; i < kCategoryCount; ++i) {
       if (offset == 0) {
-        average_scores[i] = scores[i];// + 128;
+        average_scores[i] = scores[i];
       } else {
-        average_scores[i] += scores[i]; // + 128;
+        average_scores[i] += scores[i];
       }
 
       TF_LITE_REPORT_ERROR(
         error_reporter_,
-        "Score %d %d %d", offset, i, average_scores[i]); // + 128); 
+        "Score %d %d %d", offset, i, average_scores[i]); 
     }
   }
   for (int i = 0; i < kCategoryCount; ++i) {
@@ -111,7 +104,7 @@ TfLiteStatus RecognizeCommands::ProcessLatestResults(
 
     TF_LITE_REPORT_ERROR(
         error_reporter_,
-        "AvgScore %d %d", i, average_scores[i]); // + 128); 
+        "AvgScore %d %d", i, average_scores[i]);
   }
 
   // Find the current highest scoring category.

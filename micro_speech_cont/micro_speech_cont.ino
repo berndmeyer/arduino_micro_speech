@@ -17,9 +17,9 @@ limitations under the License.
 
 #include "main_functions.h"
 #include "Arduino.h"
-#include "audio_provider.h"
+#include "g_audio_provider.h"
+#include "g_feature_provider.h"
 #include "command_responder.h"
-#include "feature_provider.h"
 #include "micro_features_micro_model_settings.h"
 #include "micro_features_model.h"
 #include "recognize_commands.h"
@@ -38,8 +38,8 @@ tflite::MicroInterpreter* interpreter = nullptr;
 TfLiteTensor* model_input = nullptr;
 FeatureProvider* feature_provider = nullptr;
 RecognizeCommands* recognizer = nullptr;
+
 int32_t previous_time = 0;
-bool previous_button_state = false;
 int32_t previous_detect_time = 0;
 
 // Create an area of memory to use for input, output, and intermediate arrays.
@@ -90,7 +90,7 @@ void setup() {
 //  if (micro_op_resolver.AddFullyConnected() != kTfLiteOk) {
 //    return;
 //  }
-//  if (micro_op_resolver.AddMaxPooling2D() != kTfLiteOk) {
+//  if (micro_op_resolver.AddMaxPool2D() != kTfLiteOk) {
 //    return;
 //  }
 //  if (micro_op_resolver.AddSoftmax() != kTfLiteOk) {
@@ -130,86 +130,75 @@ void setup() {
   }
   model_input_buffer = model_input->data.int8;
 
-  // Prepare to access the audio spectrograms from a microphone or other source
-  // that will provide the inputs to the neural network.
+//  // Prepare to access the audio spectrograms from a microphone or other source
+//  // that will provide the inputs to the neural network.
   // NOLINTNEXTLINE(runtime-global-variables)
-  static FeatureProvider static_feature_provider(kFeatureElementCount,
-                                                 feature_buffer);
+  static FeatureProvider static_feature_provider(error_reporter,
+      kFeatureElementCount,
+      feature_buffer);
+      
   feature_provider = &static_feature_provider;
 
   static RecognizeCommands static_recognizer(error_reporter);
   recognizer = &static_recognizer;
-
-  previous_time = 0;
 }
 
 // The name of this function is important for Arduino compatibility.
 void loop() {
+  
   // Fetch the spectrogram for the current time.
   const int32_t current_time = LatestAudioTimestamp();
-  int how_many_new_slices = 0;
-  bool audio_threshold = false;
-  
-  bool button_state = digitalRead(P1_11) == LOW;
-  if (button_state && button_state != previous_button_state) {
-    how_many_new_slices = -1;
-    TF_LITE_REPORT_ERROR(error_reporter, "Pressed");
-  }
-  previous_button_state = button_state;
-  
-  TfLiteStatus feature_status = feature_provider->PopulateFeatureData(
-      error_reporter, previous_time, current_time, &how_many_new_slices,
-      &audio_threshold);
-  if (feature_status != kTfLiteOk) {
-    TF_LITE_REPORT_ERROR(error_reporter, "Feature generation failed");
-    return;
-  }
-  previous_time = current_time;
-  // If no new audio samples have been received since last time, don't bother
-  // running the network model.
-  if (how_many_new_slices == 0) {
-    return;
+
+  if (previous_time < current_time) {
+    previous_time = current_time;
+    
+    if (!feature_provider->IsFeatureRequested()) {
+      if (DetectNoise(error_reporter)) {
+        feature_provider->RequestFeature();
+      }
+    }
   }
 
-  // Copy feature buffer to input tensor
-  for (int i = 0; i < kFeatureElementCount; i++) {
-    model_input_buffer[i] = feature_buffer[i];
-  }
-
-  // Determine whether a command was recognized based on the output of inference
   const char* found_command = nullptr;
   uint8_t score = 0;
   bool is_new_command = false;
 
-  if (audio_threshold && previous_detect_time - current_time > 1000) {
-     previous_detect_time = current_time;
-  }
-  
-  if (button_state && previous_detect_time - current_time < 1500) {
+  if (feature_provider->IsFeatureRequested() && feature_provider->IsFeatureReady()) {
+    TF_LITE_REPORT_ERROR(error_reporter, "Feature Check");
+
+    feature_provider->RetrieveFeature();
+
+    // Copy feature buffer to input tensor
+    for (int i = 0; i < kFeatureElementCount; i++) {
+      model_input_buffer[i] = feature_buffer[i];
+    }
+
     // Run the model on the spectrogram input and make sure it succeeds.
     TfLiteStatus invoke_status = interpreter->Invoke();
+     
     if (invoke_status != kTfLiteOk) {
-      TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed");
-      return;
+       TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed");
+     return;
     }
-  
+
     // Obtain a pointer to the output tensor
     TfLiteTensor* output = interpreter->output(0);
-    
+
+  
     TfLiteStatus process_status = recognizer->ProcessLatestResults(
-        output, current_time, &found_command, &score, &is_new_command);
+         output, current_time, &found_command, &score, &is_new_command);
     if (process_status != kTfLiteOk) {
       TF_LITE_REPORT_ERROR(error_reporter,
-                           "RecognizeCommands::ProcessLatestResults() failed");
+          "RecognizeCommands::ProcessLatestResults() failed");
       return;
     }
   }
 
-  audio_threshold = false;
-  
-  // Do something based on the recognized command. The default implementation
-  // just prints to the error console, but you should replace this with your
-  // own function for a real application.
-  RespondToCommand(error_reporter, current_time, found_command, score,
-                   is_new_command);
+   RespondToCommand(error_reporter, current_time, found_command, score,
+        is_new_command);
+
+    // feature_provider->DisplayFeature();
+
+//    TF_LITE_REPORT_ERROR(error_reporter,
+//          "Complete");
 }
